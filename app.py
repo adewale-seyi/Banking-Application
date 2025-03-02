@@ -410,7 +410,7 @@ def view_transaction_history(user):
     time.sleep(3)
     print("\n************* Transaction History ***************")
     print()
-    print(f"{'Type':<20} {'Amount':<15} {'Date':<20} {'Recepient':<30}")
+    print(f"{'Type':<20} {'Amount':<15} {'Date':<20} {'Recepient/Sender':<30}")
     print("-" * 90)
 
     for trans in transactions:
@@ -422,7 +422,21 @@ def view_transaction_history(user):
             other_info = ""
         print(f"{trans_type:<20} {formatted_amount:<15} {date:<20} {other_info:<30}")
 
-
+def account_details(user):
+    user_account_details = cursor.execute("""
+        SELECT account_number, full_name, username
+        FROM customers_details
+        WHERE account_number = ?
+    """, (user[0],)).fetchall()
+   
+    for user_details in user_account_details:
+        account_number, full_name, username = user_details
+        time.sleep(3)
+        print()
+        print("\nYour Account Information:")
+        print(f"Account Number: {account_number}")
+        print(f"Full Name: {full_name}")
+        print(f"Username: {username}")
 
 
 def operation_menu(user):
@@ -437,13 +451,14 @@ Which operation do you wish to perform?
 3. Tranfer
 4. Account Balance
 5. Transaction History
-6. Quit
+6. Account Details
+7. Quit
               
 """)
         
         choice = input("Choose an option from the menu above: ").strip()
 
-        if choice == "6":
+        if choice == "7":
             print("Thanks for banking with us!")
             break
 
@@ -461,6 +476,9 @@ Which operation do you wish to perform?
 
         elif choice == "5":
             view_transaction_history(user)
+
+        elif choice == "6":
+            account_details(user)
 
         else:
             print("Invalid choice, select from the menu")
