@@ -1,1 +1,1 @@
-# SQI---cornerstone---project
+# This is my CAPSTONE project
