@@ -28,6 +28,8 @@ CREATE TABLE IF NOT EXISTS transactions (
     transaction_type TEXT NOT NULL,
     amount REAL NOT NULL,
     date TEXT NOT NULL,
+    other_party_account INTEGER,
+    other_party_name TEXT,
     FOREIGN KEY(account_number) REFERENCES customers_details(account_number)
 )
 """)
@@ -135,8 +137,14 @@ def sign_up():
         break
 
     hashed_password = hashlib.sha256(password.encode()).hexdigest()
-    account_number = random.randrange(1000000000, 9999999999)
 
+    while True:
+        account_number = random.randrange(1000000000, 9999999999)
+
+        user_with_account_number = cursor.execute("""SELECT * FROM customers_details WHERE account_number = ?;""", (account_number,)).fetchone()
+        if user_with_account_number:  # an account already exists with that account number
+            continue
+        break
 
     try:
         cursor.execute("""
@@ -207,99 +215,93 @@ def log_in():
     print("Log In Successful")
     print()
     time.sleep(3)
-    menu(user)
-    
-
-def menu(user):
-    while True:
-        print(f"Welcome to your banking page '{user[1]}({user[0]})'")
-        operation_menu(user)
-        break
+    operation_menu(user)
     
 
 def deposit(user):
+    while True:
+        deposit_input = input("Enter the amount you want to deposit in figure: ").strip()
+        try:
+            deposit_amount = int(deposit_input)
+            if deposit_amount <= 0:
+                print("Deposit amount must be greater than zero. Please try again.")
+                continue
+        except ValueError:
+            print("Invalid input! Please enter a numeric amount.")
+            continue
+        else:
+            break
 
-    try:
-        deposit_amount = int(input("Enter the amount you want to deposit in figure: "))
-        
-        if deposit_amount <= 0:
-            print("Deposit amount must be greater than zero.")
-            return 
-        
-    except ValueError as e:
-        print("Invalid input! Please enter a numeric amount.")
-        return
-    
-    else:
-        current_balance = deposit_amount + user[3]
-        
-        cursor.execute("""
+    current_balance = deposit_amount + user[3]
+    cursor.execute("""
         UPDATE customers_details
         SET balance = ?
         WHERE username = ?
-""", (current_balance, user[2]))
-        conn.commit()
-        time.sleep(3)
+    """, (current_balance, user[2]))
+    conn.commit()
+    time.sleep(3)
+    
     print()
     print(f"Deposit successful! Your new balance is: {current_balance}")
     print()
-
+    
     cursor.execute("""
-    INSERT INTO transactions (username, account_number, transaction_type, amount, date) VALUES
-    (?, ?, ?, ?, CURRENT_TIMESTAMP)
-""", (user[2], user[0], "Deposit", deposit_amount))
+        INSERT INTO transactions (username, account_number, transaction_type, amount, date)
+        VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+    """, (user[2], user[0], "Deposit", deposit_amount))
     conn.commit()
-        
+
 
 def withdrawal(user):
+    while True:
+        withdrawal_input = input("Enter the amount you want to withdraw in figure: ").strip()
+        try:
+            withdrawal_amount = int(withdrawal_input)
+            if withdrawal_amount <= 0:
+                print("Withdrawal amount must be greater than zero. Please try again.")
+                continue
+            if withdrawal_amount > user[3]:
+                print("Insufficient Balance! Please enter a lower amount.")
+                continue
+        except ValueError:
+            print("Invalid input! Please enter a numeric amount.")
+            continue
+        else:
+            break
 
-    try:
-        withdrawal_amount = int(input("Enter the amount you want to withdraw in figure: "))
-        
-        if withdrawal_amount <= 0:
-            print("withdrawal amount must be greater than zero.")
-            return
-        
-        if withdrawal_amount > user[3]:
-            print("Insufficient Balance!")
-            return
-        
-    except ValueError as e:
-        print("Invalid input! Please enter a numeric amount.")
-        return
-    
-    else:
-        new_balance = user[3] - withdrawal_amount
-        
-        cursor.execute("""
+    new_balance = user[3] - withdrawal_amount
+    cursor.execute("""
         UPDATE customers_details
         SET balance = ?
         WHERE username = ?
-""", (new_balance, user[2]))
-        conn.commit()
-        time.sleep(3)
-
+    """, (new_balance, user[2]))
+    conn.commit()
+    time.sleep(3)
+    
     print()
     print(f"Withdrawal successful! Your new balance is: {new_balance}")
     print()
-
+    
     cursor.execute("""
-    INSERT INTO transactions (username, account_number, transaction_type, amount, date) VALUES
-    (?, ?, ?, ?, CURRENT_TIMESTAMP)
-""", (user[2], user[0], "Withdrawal", withdrawal_amount))
+        INSERT INTO transactions (username, account_number, transaction_type, amount, date)
+        VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+    """, (user[2], user[0], "Withdrawal", withdrawal_amount))
     conn.commit()
 
 
-def account_balance (user):
-    acct_balance = cursor.execute("""
+def account_balance(user):
+    result = cursor.execute("""
         SELECT balance FROM customers_details WHERE account_number = ?
-    """, (user[0],)).fetchall()
+    """, (user[0],)).fetchone()
 
-    for balance_view in acct_balance:
-        time.sleep(3)
-        print(f"Your current account balance is {balance_view}")
-        break
+    if result is None:
+        print("Account not found!")
+        return
 
+    balance = result[0]
+    time.sleep(3)
+    formatted_balance = f"₦{balance:,.2f}"
+    print(f"Your current account balance is {formatted_balance}")
 
 
 def transfer(user):
@@ -310,7 +312,6 @@ def transfer(user):
             continue
 
         recipent_acct = int(recipent_input)
-
         if recipent_acct == user[0]:
             print("You cannot transfer money to your own account.")
             continue
@@ -332,32 +333,33 @@ def transfer(user):
         recepient_name = recepient_exist[1]
         print(f"Account found: '{recepient_name}'")
         break
+
+    while True:
+        transfer_input = input("Enter the amount you want to transfer in figure: ").strip()
+        try:
+            transfer_amount = int(transfer_input)
+            if transfer_amount <= 0:
+                print("Transfer amount must be greater than zero. Please try again.")
+                continue
+            if transfer_amount > user[3]:
+                print(f"Insufficient balance to transfer! You have '{user[3]}' only.")
+                continue
+        except ValueError:
+            print("Invalid input! Please enter a numeric amount.")
+            continue
+        else:
+            break
+
     
-    try:
-        transfer_amount = int(input("Enter the amount you want to transfer in figure: "))
-        
-        if transfer_amount <= 0:
-            print("Transfer amount must be greater than zero.")
-            return 
-        
-        if transfer_amount > user[3]:
-            print(f"Insufficient balance to transfer! You have '{user[3]}' only.")
-            return
-        
-    except ValueError:
-        print("Invalid input! Please enter a numeric amount.")
-        return
-    
-    else:
-        transfer_balance = user[3] - transfer_amount
-        cursor.execute("""
-            UPDATE customers_details
-            SET balance = ?
-            WHERE username = ?
-        """, (transfer_balance, user[2]))
-        conn.commit()
-        time.sleep(3)
-    
+    transfer_balance = user[3] - transfer_amount
+    cursor.execute("""
+        UPDATE customers_details
+        SET balance = ?
+        WHERE username = ?
+    """, (transfer_balance, user[2]))
+    conn.commit()
+    time.sleep(3)
+
     print()
     print(f"Transfer successful! Your new balance is: {transfer_balance}")
     print()
@@ -369,39 +371,62 @@ def transfer(user):
         WHERE account_number = ?
     """, (recepient_balance, recepient_exist[0]))
     conn.commit()
+
     
     cursor.execute("""
-        INSERT INTO transactions (username, account_number, transaction_type, amount, date) 
-        VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-    """, (user[2], user[0], "Transfer", transfer_amount))
+        INSERT INTO transactions 
+        (account_number, username, transaction_type, amount, date, other_party_account, other_party_name)
+        VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?)
+    """, (user[0], user[2], "Transfer", transfer_amount, recepient_exist[0], recepient_exist[1]))
     conn.commit()
 
+    
     cursor.execute("""
-        INSERT INTO transactions (username, account_number, transaction_type, amount, date) 
-        VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-    """, (recepient_exist[3], recepient_exist[0], "Received Transfer", transfer_amount))
+        INSERT INTO transactions 
+        (account_number, username, transaction_type, amount, date, other_party_account, other_party_name)
+        VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?)
+    """, (recepient_exist[0], recepient_exist[3], "Received Transfer", transfer_amount, user[0], user[1]))
     conn.commit()
 
+    
+    updated_balance = cursor.execute("""
+        SELECT balance FROM customers_details WHERE account_number = ?
+    """, (user[0],)).fetchone()[0]
+    user = (user[0], user[1], user[2], updated_balance)
 
 
 
 def view_transaction_history(user):
     transactions = cursor.execute("""
-        SELECT * FROM transactions WHERE account_number = ?
+        SELECT transaction_type, amount, date, other_party_account, other_party_name
+        FROM transactions 
+        WHERE account_number = ?
     """, (user[0],)).fetchall()
 
     if not transactions:
         print("No transaction history found.")
         return
-    
-    print()
+
     time.sleep(3)
-    print("************* Transaction History ***************")
-    for idx, transaction in enumerate(transactions, start=1):
-        print()
-        print(f"{idx} {transaction}")
+    print("\n************* Transaction History ***************")
+    print()
+    print(f"{'Type':<20} {'Amount':<15} {'Date':<20} {'Recepient':<30}")
+    print("-" * 90)
+
+    for trans in transactions:
+        trans_type, amount, date, other_party_account, other_party_name = trans
+        formatted_amount = f"₦{amount:,.2f}"
+        if trans_type in ["Transfer", "Received Transfer"]:
+            other_info = f"{other_party_name} {other_party_account}"
+        else:
+            other_info = ""
+        print(f"{trans_type:<20} {formatted_amount:<15} {date:<20} {other_info:<30}")
+
+
+
 
 def operation_menu(user):
+    print(f"Welcome to your banking page '{user[1]}({user[0]})'")
     while True:
         print("""
 *************** Operation Menu ***************
