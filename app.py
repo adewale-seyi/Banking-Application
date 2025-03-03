@@ -142,7 +142,7 @@ def sign_up():
         account_number = random.randrange(1000000000, 9999999999)
 
         user_with_account_number = cursor.execute("""SELECT * FROM customers_details WHERE account_number = ?;""", (account_number,)).fetchone()
-        if user_with_account_number:  # an account already exists with that account number
+        if user_with_account_number:
             continue
         break
 
