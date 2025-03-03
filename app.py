@@ -443,16 +443,16 @@ def operation_menu(user):
     print(f"Welcome to your banking page '{user[1]}({user[0]})'")
     while True:
         print("""
-*************** Operation Menu ***************
-Which operation do you wish to perform?
+        *************** Operation Menu ***************
+        Which operation do you wish to perform?
 
-1. Deposit.
-2. Withdrawal.
-3. Tranfer
-4. Account Balance
-5. Transaction History
-6. Account Details
-7. Quit
+        1. Deposit.
+        2. Withdrawal.
+        3. Tranfer
+        4. Account Balance
+        5. Transaction History
+        6. Account Details
+        7. Quit
               
 """)
         
@@ -485,10 +485,10 @@ Which operation do you wish to perform?
 
 
 main_menu = """
-***************Main Menu***************
-1. Sign Up.
-2. Log In
-3. Quit
+        ***************Main Menu***************
+        1. Sign Up.
+        2. Log In
+        3. Quit
 
 """
 
